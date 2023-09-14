@@ -1,17 +1,22 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"time"
 
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+
+	"github.com/labstack/gommon/log"
 )
 
 func main() {
 	// Echo instance
 	e := echo.New()
+	e.Debug = true
 
 	user_group := e.Group("/user", middleware_1)
 	{
@@ -19,6 +24,18 @@ func main() {
 		user_group.Add("GET", "/delete", delete_user)
 	}
 	e.Use(middleware_3)
+
+	file, err := os.OpenFile("logfile.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		panic(fmt.Sprintf("error opening file: %v", err))
+	}
+	fileAndStdoutWriter := io.MultiWriter(os.Stdout, file)
+
+	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Format:           "[ECHO][${time_custom}] ${remote_ip} ${method} ${uri} ${status} ${bytes_out} ${latency_human}\n",
+		CustomTimeFormat: "2006-01-02 15:04:05.000",
+		Output:           fileAndStdoutWriter,
+	}))
 
 	// Routes
 	e.GET("/", index)
@@ -29,11 +46,18 @@ func main() {
 	e.GET("/user/1/files/*", usersFiles)
 	e.GET("/user/1/files/*", usersNew)
 
-	data, err := json.MarshalIndent(e.Routes(), "", "  ")
-	if err != nil {
-		return
-	}
-	fmt.Println(string(data))
+	header := `{"time":"${time_rfc3339_nano}","level":"${level}","prefix":"${prefix}",` +
+		`"file":"${long_file}","line":"${line}"}`
+	e.Logger.SetHeader(header)
+	e.Logger.SetLevel(log.DEBUG)
+	e.Logger.Warn("warn")
+	e.Logger.Error("error")
+
+	// data, err := json.MarshalIndent(e.Routes(), "", "  ")
+	// if err != nil {
+	// 	return
+	// }
+	// fmt.Println(string(data))
 	//os.WriteFile("routes.json", data, 0644)
 
 	//
