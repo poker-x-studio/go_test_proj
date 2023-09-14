@@ -23,6 +23,7 @@ func main() {
 	// Routes
 	e.GET("/", index)
 	e.GET("/ups", ups)
+	e.GET("/Ups", ups)
 	e.GET("/user/new", usersNew)
 	e.GET("/user/:name", usersName)
 	e.GET("/user/1/files/*", usersFiles)
